@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Fire & Smoke Detection — Dashboard</title>
+<style>
+  /* ── tokens ── */
+  :root {
+    --bg:        #080b10;
+    --panel:     #0d1117;
+    --border:    #1c2230;
+    --red:       #ff2d2d;
+    --orange:    #ff8c00;
+    --yellow:    #ffd400;
+    --green:     #00e676;
+    --smoke:     #a0aec0;
+    --cyan:      #00e5ff;
+    --text:      #c9d1d9;
+    --dim:       #4a5568;
+    --font-mono: 'Courier New', monospace;
+    --font-ui:   'Segoe UI', system-ui, sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-ui);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── top bar ── */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel);
+  }
+  header h1 {
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    letter-spacing: 0.12em;
+    color: var(--red);
+    text-transform: uppercase;
+  }
+  #risk-badge {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    padding: 4px 14px;
+    border-radius: 3px;
+    border: 1px solid currentColor;
+    transition: color 0.3s, border-color 0.3s, background 0.3s;
+  }
+  .badge-CLEAR    { color: var(--green);  background: rgba(0,230,118,0.08); }
+  .badge-CAUTION  { color: var(--yellow); background: rgba(255,212,0,0.08); }
+  .badge-WARNING  { color: var(--orange); background: rgba(255,140,0,0.10); }
+  .badge-CRITICAL { color: var(--red);    background: rgba(255,45,45,0.12);
+                    animation: flash 0.8s step-start infinite; }
+
+  @keyframes flash { 50% { opacity: 0.3; } }
+
+  #clock {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    color: var(--dim);
+  }
+
+  /* ── layout ── */
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    grid-template-rows: auto auto;
+    gap: 12px;
+    padding: 12px;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+
+  /* ── panels ── */
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .panel-title {
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    letter-spacing: 0.12em;
+    color: var(--dim);
+    text-transform: uppercase;
+    padding: 8px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* ── live feed ── */
+  #feed-panel { grid-row: 1 / 3; }
+  #feed-img {
+    width: 100%;
+    display: block;
+    background: #000;
+    aspect-ratio: 16/9;
+    object-fit: cover;
+  }
+  #feed-overlay {
+    padding: 8px 14px;
+    display: flex;
+    gap: 20px;
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    color: var(--dim);
+    border-top: 1px solid var(--border);
+  }
+  #feed-overlay span b { color: var(--cyan); }
+
+  /* ── stat cards ── */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: var(--border);
+  }
+  .stat-card {
+    background: var(--panel);
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .stat-label {
+    font-family: var(--font-mono);
+    font-size: 0.60rem;
+    letter-spacing: 0.1em;
+    color: var(--dim);
+    text-transform: uppercase;
+  }
+  .stat-value {
+    font-family: var(--font-mono);
+    font-size: 1.6rem;
+    font-weight: 700;
+    line-height: 1;
+  }
+  .stat-bar-track {
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .stat-bar-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.4s ease;
+  }
+
+  /* ── confidence arc (SVG) ── */
+  .arc-wrap {
+    display: flex;
+    justify-content: space-around;
+    padding: 14px;
+  }
+  .arc-item { text-align: center; }
+  .arc-label {
+    font-family: var(--font-mono);
+    font-size: 0.60rem;
+    letter-spacing: 0.10em;
+    color: var(--dim);
+    text-transform: uppercase;
+    margin-top: 4px;
+  }
+  .arc-pct {
+    font-family: var(--font-mono);
+    font-size: 0.80rem;
+    font-weight: 700;
+    margin-top: 2px;
+  }
+
+  /* ── alert log ── */
+  #alert-log {
+    max-height: 220px;
+    overflow-y: auto;
+    padding: 6px 0;
+  }
+  #alert-log::-webkit-scrollbar { width: 4px; }
+  #alert-log::-webkit-scrollbar-thumb { background: var(--border); }
+  .log-row {
+    display: grid;
+    grid-template-columns: 68px 80px 60px 60px;
+    gap: 6px;
+    padding: 5px 14px;
+    font-family: var(--font-mono);
+    font-size: 0.63rem;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+    align-items: center;
+  }
+  .log-row:hover { background: rgba(255,255,255,0.02); }
+  .log-time { color: var(--dim); }
+  .log-CRITICAL { color: var(--red); }
+  .log-WARNING  { color: var(--orange); }
+  .log-CAUTION  { color: var(--yellow); }
+  .log-fire-val { color: var(--red); }
+  .log-smoke-val { color: var(--smoke); }
+  #log-empty {
+    padding: 20px 14px;
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    color: var(--dim);
+    text-align: center;
+  }
+
+  /* ── mini chart (canvas) ── */
+  #chart-wrap { padding: 10px 14px; }
+  #trend-canvas { width: 100%; height: 80px; display: block; }
+
+  /* ── scene object counts ── */
+  .scene-row {
+    display: flex;
+    justify-content: space-around;
+    padding: 12px 14px;
+    gap: 8px;
+  }
+  .scene-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+  .scene-count {
+    font-family: var(--font-mono);
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--cyan);
+  }
+  .scene-lbl {
+    font-family: var(--font-mono);
+    font-size: 0.58rem;
+    color: var(--dim);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  /* ── footer ── */
+  footer {
+    text-align: center;
+    padding: 10px;
+    font-family: var(--font-mono);
+    font-size: 0.60rem;
+    color: var(--border);
+    border-top: 1px solid var(--border);
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>⬛ Industrial Fire &amp; Smoke Detection System</h1>
+  <span id="risk-badge" class="badge-CLEAR">CLEAR</span>
+  <span id="clock">--:--:--</span>
+</header>
+
+<div class="grid">
+
+  <!-- Live Feed -->
+  <div class="panel" id="feed-panel">
+    <div class="panel-title">Live Camera Feed</div>
+    <img id="feed-img" src="/video_feed" alt="Live Feed"/>
+    <div id="feed-overlay">
+      <span>FPS <b id="fps-val">--</b></span>
+      <span>LAT <b id="lat-val">-- ms</b></span>
+      <span>FRAME <b id="frame-val">-----</b></span>
+      <span>MODE <b id="mode-val">--</b></span>
+    </div>
+  </div>
+
+  <!-- Right column -->
+  <div style="display:flex; flex-direction:column; gap:12px;">
+
+    <!-- Confidence stats -->
+    <div class="panel">
+      <div class="panel-title">Detection Confidence</div>
+      <div class="arc-wrap">
+        <div class="arc-item">
+          <svg width="80" height="80" viewBox="0 0 80 80">
+            <circle cx="40" cy="40" r="30" fill="none" stroke="#1c2230" stroke-width="7"/>
+            <circle id="fire-arc" cx="40" cy="40" r="30" fill="none"
+                    stroke="#ff2d2d" stroke-width="7"
+                    stroke-dasharray="0 188.5"
+                    stroke-dashoffset="47"
+                    stroke-linecap="round"
+                    transform="rotate(-90 40 40)"
+                    style="transition: stroke-dasharray 0.5s ease"/>
+            <text x="40" y="44" text-anchor="middle" fill="#ff2d2d"
+                  font-family="Courier New" font-size="13" font-weight="700" id="fire-arc-txt">0%</text>
+          </svg>
+          <div class="arc-label">Fire</div>
+        </div>
+        <div class="arc-item">
+          <svg width="80" height="80" viewBox="0 0 80 80">
+            <circle cx="40" cy="40" r="30" fill="none" stroke="#1c2230" stroke-width="7"/>
+            <circle id="smoke-arc" cx="40" cy="40" r="30" fill="none"
+                    stroke="#a0aec0" stroke-width="7"
+                    stroke-dasharray="0 188.5"
+                    stroke-dashoffset="47"
+                    stroke-linecap="round"
+                    transform="rotate(-90 40 40)"
+                    style="transition: stroke-dasharray 0.5s ease"/>
+            <text x="40" y="44" text-anchor="middle" fill="#a0aec0"
+                  font-family="Courier New" font-size="13" font-weight="700" id="smoke-arc-txt">0%</text>
+          </svg>
+          <div class="arc-label">Smoke</div>
+        </div>
+      </div>
+
+      <!-- Bars -->
+      <div style="padding: 0 14px 14px;">
+        <div style="margin-bottom:10px;">
+          <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+            <span style="font-family:var(--font-mono); font-size:0.60rem; color:var(--dim);">FIRE</span>
+            <span style="font-family:var(--font-mono); font-size:0.60rem; color:var(--red);" id="fire-pct-lbl">0%</span>
+          </div>
+          <div class="stat-bar-track">
+            <div class="stat-bar-fill" id="fire-bar" style="width:0%; background:var(--red);"></div>
+          </div>
+        </div>
+        <div>
+          <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+            <span style="font-family:var(--font-mono); font-size:0.60rem; color:var(--dim);">SMOKE</span>
+            <span style="font-family:var(--font-mono); font-size:0.60rem; color:var(--smoke);" id="smoke-pct-lbl">0%</span>
+          </div>
+          <div class="stat-bar-track">
+            <div class="stat-bar-fill" id="smoke-bar" style="width:0%; background:var(--smoke);"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stats grid -->
+    <div class="panel">
+      <div class="panel-title">Detection Zones</div>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <span class="stat-label">Fire Zones</span>
+          <span class="stat-value" id="fire-zones" style="color:var(--red);">0</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Smoke Zones</span>
+          <span class="stat-value" id="smoke-zones" style="color:var(--smoke);">0</span>
+        </div>
+      </div>
+      <div class="panel-title" style="border-top:1px solid var(--border);">Scene Objects (YOLO)</div>
+      <div class="scene-row">
+        <div class="scene-item">
+          <span class="scene-count" id="scene-count">0</span>
+          <span class="scene-lbl">Objects</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Trend chart -->
+    <div class="panel">
+      <div class="panel-title">Confidence Trend (last 60s)</div>
+      <div id="chart-wrap">
+        <canvas id="trend-canvas" width="280" height="80"></canvas>
+      </div>
+    </div>
+
+    <!-- Alert log -->
+    <div class="panel" style="flex:1;">
+      <div class="panel-title">Alert Log</div>
+      <div id="alert-log">
+        <div id="log-empty">No alerts yet — system clear</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<footer>Bade Hari Preetham &nbsp;|&nbsp; Industrial Fire &amp; Smoke Detection System &nbsp;|&nbsp; Dashboard v1.0</footer>
+
+<script>
+// ── trend data ──────────────────────────────────────────────────────────────
+const TREND_MAX = 60;
+const fireTrend  = Array(TREND_MAX).fill(0);
+const smokeTrend = Array(TREND_MAX).fill(0);
+let knownAlerts  = 0;
+
+// ── clock ───────────────────────────────────────────────────────────────────
+function tickClock() {
+  document.getElementById('clock').textContent =
+    new Date().toLocaleTimeString('en-GB');
+}
+setInterval(tickClock, 1000);
+tickClock();
+
+// ── arc helpers ──────────────────────────────────────────────────────────────
+const CIRC = 2 * Math.PI * 30; // ~188.5
+function setArc(id, pct) {
+  const el = document.getElementById(id);
+  const filled = pct * CIRC;
+  el.setAttribute('stroke-dasharray', `${filled.toFixed(1)} ${(CIRC - filled).toFixed(1)}`);
+}
+
+// ── trend chart ──────────────────────────────────────────────────────────────
+function drawTrend() {
+  const canvas = document.getElementById('trend-canvas');
+  const ctx    = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
+  // grid lines
+  ctx.strokeStyle = '#1c2230';
+  ctx.lineWidth = 1;
+  [0.25, 0.5, 0.75].forEach(y => {
+    ctx.beginPath();
+    ctx.moveTo(0, H * (1 - y));
+    ctx.lineTo(W, H * (1 - y));
+    ctx.stroke();
+  });
+
+  function drawLine(data, color) {
+    ctx.beginPath();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.5;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 4;
+    data.forEach((v, i) => {
+      const x = (i / (TREND_MAX - 1)) * W;
+      const y = H - v * H;
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+  }
+  drawLine(smokeTrend, '#a0aec0');
+  drawLine(fireTrend,  '#ff2d2d');
+
+  // legend
+  ctx.font = '9px Courier New';
+  ctx.fillStyle = '#ff2d2d'; ctx.fillText('FIRE', W - 55, 12);
+  ctx.fillStyle = '#a0aec0'; ctx.fillText('SMOKE', W - 55, 22);
+}
+
+// ── alert log ────────────────────────────────────────────────────────────────
+function renderAlerts(alerts) {
+  if (!alerts.length) return;
+  const log = document.getElementById('alert-log');
+  const empty = document.getElementById('log-empty');
+  if (empty) empty.remove();
+
+  // Only add new entries
+  const newAlerts = alerts.slice(knownAlerts);
+  knownAlerts = alerts.length;
+
+  newAlerts.forEach(a => {
+    const row = document.createElement('div');
+    row.className = 'log-row';
+    row.innerHTML = `
+      <span class="log-time">${a.time}</span>
+      <span class="log-${a.risk}">${a.risk}</span>
+      <span class="log-fire-val">🔥 ${a.fire}</span>
+      <span class="log-smoke-val">💨 ${a.smoke}</span>
+    `;
+    log.appendChild(row);
+  });
+  log.scrollTop = log.scrollHeight;
+}
+
+// ── main poll loop ────────────────────────────────────────────────────────────
+async function poll() {
+  try {
+    const [stateRes, alertsRes] = await Promise.all([
+      fetch('/api/state'),
+      fetch('/api/alerts'),
+    ]);
+    const s = await stateRes.json();
+    const alerts = await alertsRes.json();
+
+    // Risk badge
+    const badge = document.getElementById('risk-badge');
+    badge.textContent = s.risk;
+    badge.className = `badge-${s.risk}`;
+
+    // Feed overlay
+    document.getElementById('fps-val').textContent   = s.fps.toFixed(1);
+    document.getElementById('lat-val').textContent   = s.latency_ms.toFixed(1) + ' ms';
+    document.getElementById('frame-val').textContent = String(s.frame_idx).padStart(5, '0');
+    document.getElementById('mode-val').textContent  = s.mode;
+
+    // Arcs + bars
+    const fp = s.fire_conf, sp = s.smoke_conf;
+    setArc('fire-arc',  fp);
+    setArc('smoke-arc', sp);
+    document.getElementById('fire-arc-txt').textContent  = Math.round(fp * 100) + '%';
+    document.getElementById('smoke-arc-txt').textContent = Math.round(sp * 100) + '%';
+    document.getElementById('fire-bar').style.width   = (fp * 100).toFixed(1) + '%';
+    document.getElementById('smoke-bar').style.width  = (sp * 100).toFixed(1) + '%';
+    document.getElementById('fire-pct-lbl').textContent  = Math.round(fp * 100) + '%';
+    document.getElementById('smoke-pct-lbl').textContent = Math.round(sp * 100) + '%';
+
+    // Zone counts
+    document.getElementById('fire-zones').textContent  = s.fire_count;
+    document.getElementById('smoke-zones').textContent = s.smoke_count;
+    document.getElementById('scene-count').textContent = s.scene_count;
+
+    // Trend
+    fireTrend.push(fp);   if (fireTrend.length  > TREND_MAX) fireTrend.shift();
+    smokeTrend.push(sp);  if (smokeTrend.length > TREND_MAX) smokeTrend.shift();
+    drawTrend();
+
+    // Alerts
+    renderAlerts(alerts);
+
+  } catch (e) {
+    // Server not ready yet — silently retry
+  }
+}
+
+setInterval(poll, 500);   // poll every 500ms
+poll();
+</script>
+</body>
+</html>

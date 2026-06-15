@@ -1,0 +1,1157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Industrial Fire & Smoke Detection System — Bade Hari Preetham</title>
+<style>
+/* ── reset ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* ── tokens ── */
+:root {
+  --bg:        #080b10;
+  --panel:     #0d1117;
+  --panel2:    #0a0e15;
+  --border:    #1c2230;
+  --border2:   #243044;
+  --red:       #ff2d2d;
+  --red-dim:   #8b1a1a;
+  --orange:    #ff8c00;
+  --yellow:    #ffd400;
+  --green:     #00e676;
+  --cyan:      #00e5ff;
+  --smoke:     #a0aec0;
+  --text:      #c9d1d9;
+  --dim:       #4a5568;
+  --dim2:      #2d3748;
+  --mono:      'Courier New', 'Lucida Console', monospace;
+  --ui:        system-ui, -apple-system, sans-serif;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--ui);
+  font-size: 15px;
+  line-height: 1.7;
+  overflow-x: hidden;
+}
+
+/* ── scanline overlay ── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0px,
+    transparent 2px,
+    rgba(0,0,0,0.08) 2px,
+    rgba(0,0,0,0.08) 3px
+  );
+  pointer-events: none;
+  z-index: 1000;
+}
+
+/* ── hero ── */
+.hero {
+  position: relative;
+  padding: 80px 40px 60px;
+  border-bottom: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.hero::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 70% 50%, rgba(255,45,45,0.06) 0%, transparent 65%);
+  pointer-events: none;
+}
+
+.hero-eyebrow {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  color: var(--red);
+  text-transform: uppercase;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.hero-eyebrow::before {
+  content: '';
+  display: inline-block;
+  width: 28px;
+  height: 1px;
+  background: var(--red);
+}
+
+.hero h1 {
+  font-family: var(--mono);
+  font-size: clamp(22px, 4vw, 42px);
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+  margin-bottom: 8px;
+}
+
+.hero h1 span { color: var(--red); }
+
+.hero-sub {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--dim);
+  letter-spacing: 0.06em;
+  margin-bottom: 32px;
+}
+
+.hero-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 48px;
+}
+
+.badge {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  padding: 4px 12px;
+  border-radius: 2px;
+  border: 1px solid;
+  text-transform: uppercase;
+}
+
+.badge-red    { color: var(--red);    border-color: var(--red-dim);  background: rgba(255,45,45,0.06); }
+.badge-cyan   { color: var(--cyan);   border-color: #004d5e;         background: rgba(0,229,255,0.05); }
+.badge-green  { color: var(--green);  border-color: #004d2e;         background: rgba(0,230,118,0.05); }
+.badge-yellow { color: var(--yellow); border-color: #5e4a00;         background: rgba(255,212,0,0.05); }
+.badge-smoke  { color: var(--smoke);  border-color: var(--border2);  background: rgba(160,174,192,0.05); }
+
+/* ── ASCII diagram ── */
+.ascii-wrap {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 24px 28px;
+  overflow-x: auto;
+  max-width: 720px;
+}
+
+.ascii-wrap pre {
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--dim);
+  white-space: pre;
+}
+
+.ascii-wrap pre .hl-red    { color: var(--red); }
+.ascii-wrap pre .hl-cyan   { color: var(--cyan); }
+.ascii-wrap pre .hl-green  { color: var(--green); }
+.ascii-wrap pre .hl-yellow { color: var(--yellow); }
+.ascii-wrap pre .hl-smoke  { color: var(--smoke); }
+.ascii-wrap pre .hl-dim    { color: #2d3748; }
+
+/* ── nav ── */
+nav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(8,11,16,0.95);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--border);
+  padding: 0 40px;
+  display: flex;
+  align-items: center;
+  gap: 0;
+  overflow-x: auto;
+}
+
+nav a {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--dim);
+  text-decoration: none;
+  padding: 14px 16px;
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+  transition: color 0.2s, border-color 0.2s;
+}
+
+nav a:hover { color: var(--cyan); border-bottom-color: var(--cyan); }
+
+/* ── layout ── */
+.container {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 0 40px;
+}
+
+section {
+  padding: 64px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.section-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--red);
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.section-label::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+  max-width: 60px;
+}
+
+h2 {
+  font-size: 24px;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 20px;
+  letter-spacing: -0.01em;
+}
+
+h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 10px;
+}
+
+p { color: var(--text); margin-bottom: 14px; }
+p:last-child { margin-bottom: 0; }
+
+/* ── feature cards ── */
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+  margin-top: 28px;
+}
+
+.card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 20px 22px;
+  position: relative;
+  overflow: hidden;
+}
+
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+}
+
+.card.c-red::before    { background: var(--red); }
+.card.c-cyan::before   { background: var(--cyan); }
+.card.c-green::before  { background: var(--green); }
+.card.c-yellow::before { background: var(--yellow); }
+.card.c-smoke::before  { background: var(--smoke); }
+.card.c-orange::before { background: var(--orange); }
+
+.card-icon {
+  font-size: 22px;
+  margin-bottom: 10px;
+}
+
+.card h3 { font-size: 14px; margin-bottom: 6px; }
+.card p  { font-size: 13px; color: var(--dim); margin: 0; line-height: 1.55; }
+
+/* ── pipeline steps ── */
+.pipeline {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin-top: 28px;
+  position: relative;
+}
+
+.pipeline::before {
+  content: '';
+  position: absolute;
+  left: 19px;
+  top: 0; bottom: 0;
+  width: 1px;
+  background: var(--border);
+}
+
+.step {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  padding: 20px 0;
+  position: relative;
+}
+
+.step-num {
+  width: 38px;
+  height: 38px;
+  min-width: 38px;
+  border-radius: 50%;
+  background: var(--panel);
+  border: 1px solid var(--border2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--cyan);
+  position: relative;
+  z-index: 1;
+}
+
+.step-body h3 { font-size: 15px; margin-bottom: 4px; }
+.step-body p  { font-size: 13px; color: var(--dim); margin: 0; }
+
+/* ── code blocks ── */
+pre, code {
+  font-family: var(--mono);
+}
+
+.code-block {
+  background: var(--panel2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow-x: auto;
+  margin: 16px 0;
+}
+
+.code-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.code-lang {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+
+.code-block pre {
+  padding: 16px 18px;
+  font-size: 12.5px;
+  line-height: 1.65;
+  color: var(--text);
+  overflow-x: auto;
+}
+
+.code-block .kw  { color: var(--cyan); }
+.code-block .str { color: var(--green); }
+.code-block .cm  { color: var(--dim); }
+.code-block .num { color: var(--yellow); }
+.code-block .fn  { color: #c792ea; }
+
+/* ── table ── */
+.tbl-wrap { overflow-x: auto; margin-top: 20px; }
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+th {
+  text-align: left;
+  padding: 10px 14px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--dim);
+  border-bottom: 1px solid var(--border2);
+}
+td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: rgba(255,255,255,0.015); }
+td:first-child { font-family: var(--mono); font-size: 12px; color: var(--cyan); }
+td code {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  padding: 1px 6px;
+  border-radius: 2px;
+  font-size: 11px;
+  color: var(--yellow);
+}
+
+/* ── stat row ── */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-top: 28px;
+}
+
+.stat {
+  background: var(--panel);
+  padding: 20px 22px;
+}
+
+.stat-val {
+  font-family: var(--mono);
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1;
+  margin-bottom: 6px;
+}
+
+.stat-lbl {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+
+/* ── alert level table ── */
+.risk-table { margin-top: 24px; }
+.risk-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 16px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  margin-bottom: 6px;
+}
+.risk-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.risk-name {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 700;
+  width: 80px;
+  flex-shrink: 0;
+}
+.risk-bar-track {
+  flex: 1;
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.risk-bar-fill { height: 100%; border-radius: 2px; }
+.risk-desc { font-size: 12px; color: var(--dim); width: 200px; flex-shrink: 0; text-align: right; }
+
+/* ── file tree ── */
+.file-tree {
+  background: var(--panel2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 20px 24px;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  line-height: 2;
+  margin-top: 20px;
+}
+.file-tree .dir  { color: var(--cyan); }
+.file-tree .file { color: var(--text); }
+.file-tree .note { color: var(--dim); }
+.file-tree .new  { color: var(--green); }
+
+/* ── author card ── */
+.author {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 24px 28px;
+  margin-top: 28px;
+}
+
+.author-avatar {
+  width: 64px; height: 64px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--red-dim), var(--red));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mono);
+  font-size: 22px;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.author-name {
+  font-size: 17px;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 2px;
+}
+
+.author-role {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--dim);
+  letter-spacing: 0.08em;
+  margin-bottom: 8px;
+}
+
+.author-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.author-tag {
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 2px 8px;
+  border: 1px solid var(--border2);
+  border-radius: 2px;
+  color: var(--dim);
+}
+
+/* ── footer ── */
+footer {
+  padding: 32px 40px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.footer-brand {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--dim);
+  letter-spacing: 0.08em;
+}
+
+.footer-brand span { color: var(--red); }
+
+.footer-links {
+  display: flex;
+  gap: 20px;
+}
+
+.footer-links a {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--dim);
+  text-decoration: none;
+  letter-spacing: 0.08em;
+}
+
+.footer-links a:hover { color: var(--cyan); }
+
+/* ── util ── */
+.mt-4  { margin-top: 16px; }
+.mt-6  { margin-top: 24px; }
+.mt-8  { margin-top: 32px; }
+.red   { color: var(--red); }
+.cyan  { color: var(--cyan); }
+.green { color: var(--green); }
+.dim   { color: var(--dim); }
+
+@media (max-width: 640px) {
+  .hero, .container { padding-left: 20px; padding-right: 20px; }
+  nav { padding: 0 20px; }
+  .author { flex-direction: column; }
+  footer { flex-direction: column; }
+  .risk-desc { display: none; }
+}
+</style>
+</head>
+<body>
+
+<!-- ── HERO ── -->
+<section class="hero">
+  <div class="container">
+    <div class="hero-eyebrow">Industrial Computer Vision System</div>
+    <h1>Industrial <span>Fire &amp; Smoke</span><br>Detection System</h1>
+    <div class="hero-sub">Real-time AI-powered hazard detection using YOLOv8 + OpenCV</div>
+
+    <div class="hero-badges">
+      <span class="badge badge-red">Python 3.13</span>
+      <span class="badge badge-cyan">YOLOv8</span>
+      <span class="badge badge-cyan">OpenCV</span>
+      <span class="badge badge-green">Flask Dashboard</span>
+      <span class="badge badge-yellow">Multi-Camera</span>
+      <span class="badge badge-smoke">CPU / GPU</span>
+    </div>
+
+    <div class="ascii-wrap">
+<pre>
+<span class="hl-dim">┌─────────────────────────────────────────────────────────────────┐</span>
+<span class="hl-dim">│</span>              <span class="hl-red">INDUSTRIAL FIRE & SMOKE DETECTION AI</span>              <span class="hl-dim">│</span>
+<span class="hl-dim">├─────────────────────────────────────────────────────────────────┤</span>
+<span class="hl-dim">│</span>                                                                 <span class="hl-dim">│</span>
+<span class="hl-dim">│</span>   <span class="hl-cyan">📷 CAMERA INPUT</span>                                              <span class="hl-dim">│</span>
+<span class="hl-dim">│</span>   Webcam / RTSP Stream / Video File                             <span class="hl-dim">│</span>
+<span class="hl-dim">│</span>          │                                                      <span class="hl-dim">│</span>
+<span class="hl-dim">│</span>          ▼                                                      <span class="hl-dim">│</span>
+<span class="hl-dim">│</span>   <span class="hl-cyan">⚙  OpenCV Frame Processing</span>  ──▶  Resize / Vignette / HUD     <span class="hl-dim">│</span>
+<span class="hl-dim">│</span>          │                                                      <span class="hl-dim">│</span>
+<span class="hl-dim">│</span>     ┌────┴────┐                                                 <span class="hl-dim">│</span>
+<span class="hl-dim">│</span>     ▼         ▼                                                 <span class="hl-dim">│</span>
+<span class="hl-dim">│</span>  <span class="hl-red">🔥 YOLOv8</span>   <span class="hl-smoke">💨 YOLOv8</span>   <span class="hl-cyan">👤 YOLOv8n</span>                          <span class="hl-dim">│</span>
+<span class="hl-dim">│</span>  <span class="hl-red">Fire Model</span>  <span class="hl-smoke">Smoke Model</span>  <span class="hl-cyan">Scene Ctx</span>                          <span class="hl-dim">│</span>
+<span class="hl-dim">│</span>  <span class="hl-red">20k images</span>  <span class="hl-smoke">same .pt</span>    <span class="hl-cyan">persons+</span>                            <span class="hl-dim">│</span>
+<span class="hl-dim">│</span>     │         │           <span class="hl-cyan">vehicles</span>                            <span class="hl-dim">│</span>
+<span class="hl-dim">│</span>     └────┬────┘                                                 <span class="hl-dim">│</span>
+<span class="hl-dim">│</span>          ▼                                                      <span class="hl-dim">│</span>
+<span class="hl-dim">│</span>   <span class="hl-yellow">⚖  Risk Classifier</span>                                          <span class="hl-dim">│</span>
+<span class="hl-dim">│</span>   CLEAR ▶ CAUTION ▶ WARNING ▶ CRITICAL                         <span class="hl-dim">│</span>
+<span class="hl-dim">│</span>          │                                                      <span class="hl-dim">│</span>
+<span class="hl-dim">│</span>   ┌──────┼──────────────────┐                                   <span class="hl-dim">│</span>
+<span class="hl-dim">│</span>   ▼      ▼                  ▼                                   <span class="hl-dim">│</span>
+<span class="hl-dim">│</span>  <span class="hl-red">🔔 Sound</span> <span class="hl-green">📧 Email</span>        <span class="hl-cyan">🌐 Dashboard</span>                        <span class="hl-dim">│</span>
+<span class="hl-dim">│</span>  <span class="hl-red">Alarm</span>   <span class="hl-green">+ Screenshot</span>   <span class="hl-cyan">localhost:5000</span>                      <span class="hl-dim">│</span>
+<span class="hl-dim">│</span>                            <span class="hl-cyan">+ CSV Log</span>                          <span class="hl-dim">│</span>
+<span class="hl-dim">│</span>                            <span class="hl-cyan">+ HTML Report</span>                      <span class="hl-dim">│</span>
+<span class="hl-dim">│</span>                                                                 <span class="hl-dim">│</span>
+<span class="hl-dim">└─────────────────────────────────────────────────────────────────┘</span>
+</pre>
+    </div>
+  </div>
+</section>
+
+<!-- ── NAV ── -->
+<nav>
+  <a href="#overview">Overview</a>
+  <a href="#features">Features</a>
+  <a href="#how-it-works">How It Works</a>
+  <a href="#detection">Detection</a>
+  <a href="#alerts">Alerts</a>
+  <a href="#setup">Setup</a>
+  <a href="#usage">Usage</a>
+  <a href="#structure">Structure</a>
+  <a href="#author">Author</a>
+</nav>
+
+<!-- ── OVERVIEW ── -->
+<section id="overview">
+  <div class="container">
+    <div class="section-label">Overview</div>
+    <h2>What is this project?</h2>
+    <p>
+      This is a real-time industrial fire and smoke detection system built using Python, YOLOv8, and OpenCV.
+      It monitors one or more camera feeds simultaneously, detects fire and smoke using a custom-trained
+      deep learning model, and immediately triggers multi-channel alerts — sound, email, and a live web dashboard.
+    </p>
+    <p>
+      The system was built from scratch as a complete computer vision pipeline: from raw camera input, through
+      AI inference, to alert delivery and session reporting. Every component was designed for reliability in
+      low-resource environments — it runs entirely on CPU with no GPU required.
+    </p>
+
+    <div class="stats">
+      <div class="stat">
+        <div class="stat-val" style="color:var(--red)">20K</div>
+        <div class="stat-lbl">Training Images</div>
+      </div>
+      <div class="stat">
+        <div class="stat-val" style="color:var(--cyan)">2</div>
+        <div class="stat-lbl">Detection Classes</div>
+      </div>
+      <div class="stat">
+        <div class="stat-val" style="color:var(--yellow)">71.6%</div>
+        <div class="stat-lbl">mAP@50</div>
+      </div>
+      <div class="stat">
+        <div class="stat-val" style="color:var(--green)">4+</div>
+        <div class="stat-lbl">Alert Channels</div>
+      </div>
+      <div class="stat">
+        <div class="stat-val" style="color:var(--smoke)">2</div>
+        <div class="stat-lbl">Simultaneous Cameras</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── FEATURES ── -->
+<section id="features">
+  <div class="container">
+    <div class="section-label">Features</div>
+    <h2>What it can do</h2>
+    <p>Every feature was built and tested end-to-end — nothing is placeholder or demo-only.</p>
+
+    <div class="cards">
+      <div class="card c-red">
+        <div class="card-icon">🔥</div>
+        <h3>YOLOv8 Fire Detection</h3>
+        <p>Custom-trained on the D-Fire dataset (20,320 images). Detects actual fire, not just orange colours. Ignores bird pictures, warm lights, and skin tones.</p>
+      </div>
+      <div class="card c-smoke">
+        <div class="card-icon">💨</div>
+        <h3>YOLOv8 Smoke Detection</h3>
+        <p>Uses the same trained model's smoke class. Replaced the original MOG2 colour-mask fallback that triggered on plant movement and body motion.</p>
+      </div>
+      <div class="card c-cyan">
+        <div class="card-icon">🌐</div>
+        <h3>Live Web Dashboard</h3>
+        <p>Flask server at localhost:5000. Shows live camera feed, confidence arcs, trend chart, detection zones, and scrolling alert log — all updating in real time.</p>
+      </div>
+      <div class="card c-red">
+        <div class="card-icon">🔔</div>
+        <h3>Sound Alarm</h3>
+        <p>Plays an alarm sound via pygame. Auto-generates a beep tone if no mp3 file is present. Respects cooldown to avoid repeated triggering.</p>
+      </div>
+      <div class="card c-green">
+        <div class="card-icon">📧</div>
+        <h3>Email Alerts</h3>
+        <p>Sends an HTML email with fire/smoke confidence stats and an attached screenshot of the detection frame. Sent in a background thread — never slows the video loop.</p>
+      </div>
+      <div class="card c-yellow">
+        <div class="card-icon">📋</div>
+        <h3>Detection Log (CSV)</h3>
+        <p>Every frame is written to a CSV file with timestamp, risk level, confidence scores, zone counts, and FPS. Alert events get a separate log with screenshot paths.</p>
+      </div>
+      <div class="card c-smoke">
+        <div class="card-icon">📊</div>
+        <h3>Session HTML Report</h3>
+        <p>Auto-generated when you quit. Shows session stats, confidence trend chart, risk distribution bars, critical screenshots, and the full alert log table.</p>
+      </div>
+      <div class="card c-cyan">
+        <div class="card-icon">📷</div>
+        <h3>Multi-Camera Support</h3>
+        <p>Monitors 2+ camera feeds simultaneously. Each camera runs in its own thread with independent detectors. Side-by-side view with combined risk assessment.</p>
+      </div>
+      <div class="card c-red">
+        <div class="card-icon">🛡</div>
+        <h3>False Positive Filters</h3>
+        <p>Scene-aware filter removes smoke/fire blobs overlapping YOLO-detected persons. Sustained alert gate requires 3 seconds of continuous detection before alerting.</p>
+      </div>
+      <div class="card c-orange">
+        <div class="card-icon">⏱</div>
+        <h3>Sustained Alert Gate</h3>
+        <p>Prevents alert spam. A risk level must persist for 3 continuous seconds before sound/email alerts trigger. Single-frame spikes are ignored completely.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── HOW IT WORKS ── -->
+<section id="how-it-works">
+  <div class="container">
+    <div class="section-label">Pipeline</div>
+    <h2>How it works — step by step</h2>
+    <p>Every frame goes through this pipeline in under 200ms on a standard laptop CPU.</p>
+
+    <div class="pipeline">
+      <div class="step">
+        <div class="step-num">01</div>
+        <div class="step-body">
+          <h3>Camera Input</h3>
+          <p>OpenCV opens the camera source — webcam index, video file path, or RTSP stream URL. Each frame is resized to 1280×720 for consistent processing.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">02</div>
+        <div class="step-body">
+          <h3>Fire Detection — YOLOv8</h3>
+          <p>The frame is passed to the custom-trained YOLOv8 model (fire_yolo.pt). The model returns bounding boxes with confidence scores for fire and smoke classes. Runs every 2nd frame to save CPU.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">03</div>
+        <div class="step-body">
+          <h3>Smoke Detection — YOLOv8</h3>
+          <p>The same model is reused for smoke detection, filtering only the smoke class. Falls back to MOG2 background subtraction + HSV colour masking if the model has no smoke class.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">04</div>
+        <div class="step-body">
+          <h3>Scene Context — YOLOv8n</h3>
+          <p>A second lightweight model (yolov8n.pt) detects persons, cars, buses, and trucks. Any fire/smoke blob that overlaps ≥35% with a person box is discarded — person movement ≠ smoke.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">05</div>
+        <div class="step-body">
+          <h3>Risk Classification</h3>
+          <p>Fire and smoke confidences are combined into a single risk score. Thresholds map to CLEAR → CAUTION → WARNING → CRITICAL. A sustained gate requires 3 continuous seconds before escalating.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">06</div>
+        <div class="step-body">
+          <h3>HUD Rendering</h3>
+          <p>Bounding boxes with glow outlines, confidence bars, animated danger banners, top/bottom status bars, and cinematic scanlines are drawn onto the frame using OpenCV drawing functions.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">07</div>
+        <div class="step-body">
+          <h3>Alert Delivery</h3>
+          <p>On risk escalation: alarm sound plays, email sends with screenshot attached, dashboard updates, CSV row is written. All alert systems run in background threads — the video loop is never blocked.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── DETECTION ── -->
+<section id="detection">
+  <div class="container">
+    <div class="section-label">Detection Engine</div>
+    <h2>The AI model</h2>
+    <p>
+      The fire detection model was trained on the <strong style="color:#fff">D-Fire dataset</strong> — 20,320 images
+      of real industrial fire and smoke scenarios. The model uses the Roboflow 3.0 (YOLOv8-compatible)
+      architecture trained for 20 epochs on a Tesla T4 GPU.
+    </p>
+
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Metric</th>
+            <th>Fire</th>
+            <th>Smoke</th>
+            <th>Overall</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>mAP@50</td>
+            <td>66.0%</td>
+            <td>77.2%</td>
+            <td>71.6%</td>
+          </tr>
+          <tr>
+            <td>Precision</td>
+            <td>69.4%</td>
+            <td>75.9%</td>
+            <td>72.0%</td>
+          </tr>
+          <tr>
+            <td>Recall</td>
+            <td>59.2%</td>
+            <td>71.6%</td>
+            <td>65.6%</td>
+          </tr>
+          <tr>
+            <td>Training images</td>
+            <td colspan="3">13,374 training / 4,342 validation</td>
+          </tr>
+          <tr>
+            <td>Epochs</td>
+            <td colspan="3">20 epochs — 1.5 hours on Tesla T4 GPU</td>
+          </tr>
+          <tr>
+            <td>Model size</td>
+            <td colspan="3">6.2 MB (YOLOv8n compatible — optimized for CPU)</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3 class="mt-8">Risk Levels</h3>
+    <div class="risk-table mt-4">
+      <div class="risk-row">
+        <div class="risk-dot" style="background:var(--green)"></div>
+        <div class="risk-name" style="color:var(--green)">CLEAR</div>
+        <div class="risk-bar-track"><div class="risk-bar-fill" style="width:0%;background:var(--green)"></div></div>
+        <div class="risk-desc">No fire or smoke detected</div>
+      </div>
+      <div class="risk-row">
+        <div class="risk-dot" style="background:var(--yellow)"></div>
+        <div class="risk-name" style="color:var(--yellow)">CAUTION</div>
+        <div class="risk-bar-track"><div class="risk-bar-fill" style="width:35%;background:var(--yellow)"></div></div>
+        <div class="risk-desc">Confidence &gt; 35% — monitor closely</div>
+      </div>
+      <div class="risk-row">
+        <div class="risk-dot" style="background:var(--orange)"></div>
+        <div class="risk-name" style="color:var(--orange)">WARNING</div>
+        <div class="risk-bar-track"><div class="risk-bar-fill" style="width:55%;background:var(--orange)"></div></div>
+        <div class="risk-desc">Confidence &gt; 55% — alert triggered</div>
+      </div>
+      <div class="risk-row">
+        <div class="risk-dot" style="background:var(--red)"></div>
+        <div class="risk-name" style="color:var(--red)">CRITICAL</div>
+        <div class="risk-bar-track"><div class="risk-bar-fill" style="width:100%;background:var(--red)"></div></div>
+        <div class="risk-desc">Confidence &gt; 75% — all alerts fire</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── ALERTS ── -->
+<section id="alerts">
+  <div class="container">
+    <div class="section-label">Alert System</div>
+    <h2>Multi-channel alerts</h2>
+    <p>When a hazard is confirmed, the system triggers up to four simultaneous alert channels — all in background threads so detection never pauses.</p>
+
+    <div class="cards mt-6">
+      <div class="card c-red">
+        <div class="card-icon">🔔</div>
+        <h3>Sound Alarm</h3>
+        <p>Plays alarm.mp3 via pygame. If the file is missing, a 880Hz sine-wave beep is auto-generated. 15-second cooldown prevents repeat triggering. Stops instantly when risk clears.</p>
+      </div>
+      <div class="card c-green">
+        <div class="card-icon">📧</div>
+        <h3>Email Alert</h3>
+        <p>Sends a styled HTML email via Gmail SMTP showing risk level, fire/smoke confidence, zone counts, and frame number. Attaches the exact screenshot frame that triggered the alert.</p>
+      </div>
+      <div class="card c-cyan">
+        <div class="card-icon">🌐</div>
+        <h3>Web Dashboard</h3>
+        <p>Live feed streamed as MJPEG to localhost:5000. Dashboard shows confidence arcs, trend chart (last 60 seconds), detection zone counts, and a scrolling alert log.</p>
+      </div>
+      <div class="card c-yellow">
+        <div class="card-icon">📋</div>
+        <h3>CSV Log + Report</h3>
+        <p>Every alert is written to alert_log_*.csv with timestamp and screenshot path. On session end, a self-contained HTML report is auto-generated with charts and thumbnails.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── SETUP ── -->
+<section id="setup">
+  <div class="container">
+    <div class="section-label">Setup</div>
+    <h2>Installation &amp; requirements</h2>
+
+    <h3>Requirements</h3>
+    <div class="tbl-wrap mt-4">
+      <table>
+        <thead><tr><th>Requirement</th><th>Version</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td>Python</td><td>3.8 +</td><td>Tested on 3.13</td></tr>
+          <tr><td>OpenCV</td><td>4.x</td><td><code>opencv-python</code></td></tr>
+          <tr><td>Ultralytics</td><td>8.x</td><td>YOLOv8 inference</td></tr>
+          <tr><td>PyTorch</td><td>2.x</td><td>CPU mode works fine</td></tr>
+          <tr><td>Flask</td><td>3.x</td><td>Web dashboard server</td></tr>
+          <tr><td>pygame</td><td>2.x</td><td>Sound alarm playback</td></tr>
+          <tr><td>GPU</td><td>Optional</td><td>Runs on CPU at 3–7 FPS</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3 class="mt-8">Install dependencies</h3>
+    <div class="code-block mt-4">
+      <div class="code-header"><span class="code-lang">bash</span></div>
+      <pre><span class="cm"># Clone the repository</span>
+git clone https://github.com/yourusername/fire-smoke-detection.git
+cd fire-smoke-detection/FireSmoke
+
+<span class="cm"># Install all dependencies</span>
+pip install opencv-python ultralytics torch torchvision flask pygame pillow</pre>
+    </div>
+
+    <p class="dim" style="font-size:13px; margin-top:8px;">
+      Note: The app also auto-installs any missing packages on first run.
+    </p>
+
+    <h3 class="mt-8">Configure email alerts</h3>
+    <div class="code-block mt-4">
+      <div class="code-header"><span class="code-lang">python — app.py</span></div>
+      <pre>EMAIL_CFG = {
+    <span class="str">"enabled"</span>:        <span class="kw">True</span>,
+    <span class="str">"sender_email"</span>:   <span class="str">"your_gmail@gmail.com"</span>,
+    <span class="str">"sender_password"</span>:<span class="str">"your_16char_app_password"</span>,  <span class="cm"># Gmail App Password</span>
+    <span class="str">"recipients"</span>: [<span class="str">"alert_recipient@gmail.com"</span>],
+    <span class="str">"alert_on"</span>:       [<span class="str">"CRITICAL"</span>],
+    <span class="str">"cooldown_sec"</span>:   <span class="num">60</span>,
+}</pre>
+    </div>
+  </div>
+</section>
+
+<!-- ── USAGE ── -->
+<section id="usage">
+  <div class="container">
+    <div class="section-label">Usage</div>
+    <h2>Running the system</h2>
+
+    <div class="code-block mt-4">
+      <div class="code-header"><span class="code-lang">bash</span></div>
+      <pre><span class="cm"># Single webcam (default)</span>
+python app.py <span class="num">0</span>
+
+<span class="cm"># Video file</span>
+python app.py fire_test.mp4
+
+<span class="cm"># RTSP stream</span>
+python app.py rtsp://192.168.1.100:554/stream
+
+<span class="cm"># Skip person/vehicle detection (faster on slow CPU)</span>
+python app.py <span class="num">0</span> --no-yolo
+
+<span class="cm"># Custom output file</span>
+python app.py <span class="num">0</span> --output my_recording.mp4</pre>
+    </div>
+
+    <h3 class="mt-8">Keyboard controls</h3>
+    <div class="tbl-wrap mt-4">
+      <table>
+        <thead><tr><th>Key</th><th>Action</th></tr></thead>
+        <tbody>
+          <tr><td>Q</td><td>Quit — saves session report and closes</td></tr>
+          <tr><td>P</td><td>Pause / Resume the video feed</td></tr>
+          <tr><td>S</td><td>Save a screenshot of the current frame</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3 class="mt-8">Multi-camera mode</h3>
+    <div class="code-block mt-4">
+      <div class="code-header"><span class="code-lang">python — app.py</span></div>
+      <pre>MULTI_CAM_CFG = {
+    <span class="str">"enabled"</span>:  <span class="kw">True</span>,
+    <span class="str">"sources"</span>:  [<span class="num">0</span>, <span class="num">1</span>],                   <span class="cm"># two webcams</span>
+    <span class="str">"labels"</span>:   [<span class="str">"CAM-A"</span>, <span class="str">"CAM-B"</span>],
+}
+
+<span class="cm"># Or mix webcam + OBS virtual camera + video file</span>
+MULTI_CAM_CFG = {
+    <span class="str">"enabled"</span>:  <span class="kw">True</span>,
+    <span class="str">"sources"</span>:  [<span class="num">0</span>, <span class="num">1</span>, <span class="str">"fire_test.mp4"</span>],
+    <span class="str">"labels"</span>:   [<span class="str">"ENTRY"</span>, <span class="str">"WAREHOUSE"</span>, <span class="str">"RECORDED"</span>],
+}</pre>
+    </div>
+
+    <h3 class="mt-8">Web dashboard</h3>
+    <p>Once running, open your browser and go to:</p>
+    <div class="code-block mt-4">
+      <div class="code-header"><span class="code-lang">url</span></div>
+      <pre>http://localhost:5000</pre>
+    </div>
+  </div>
+</section>
+
+<!-- ── STRUCTURE ── -->
+<section id="structure">
+  <div class="container">
+    <div class="section-label">Project Structure</div>
+    <h2>Files and folders</h2>
+
+    <div class="file-tree">
+      <div><span class="dir">FireSmoke/</span></div>
+      <div>&nbsp;&nbsp;├── <span class="file">app.py</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="note">← main application (all detection + alerts)</span></div>
+      <div>&nbsp;&nbsp;├── <span class="file">dashboard.html</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="note">← web dashboard UI</span></div>
+      <div>&nbsp;&nbsp;├── <span class="file">yolov8n.pt</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="note">← scene context model (persons/vehicles)</span></div>
+      <div>&nbsp;&nbsp;├── <span class="new">fire_yolo.pt</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="note">← custom trained fire+smoke model</span></div>
+      <div>&nbsp;&nbsp;├── <span class="file">alarm.mp3</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="note">← optional alarm sound file</span></div>
+      <div>&nbsp;&nbsp;├── <span class="file">output_detected.mp4</span> &nbsp;&nbsp;&nbsp;<span class="note">← recorded session output</span></div>
+      <div>&nbsp;&nbsp;└── <span class="dir">detection_logs/</span></div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── <span class="file">detection_log_*.csv</span> &nbsp;<span class="note">← every frame logged</span></div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── <span class="file">alert_log_*.csv</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="note">← only alert events</span></div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── <span class="new">report_*.html</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="note">← auto-generated session report</span></div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└── <span class="dir">screenshots/</span></div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└── <span class="file">CRITICAL_*.jpg</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="note">← auto-saved alert frames</span></div>
+    </div>
+
+    <h3 class="mt-8">Key classes in app.py</h3>
+    <div class="tbl-wrap mt-4">
+      <table>
+        <thead><tr><th>Class</th><th>What it does</th></tr></thead>
+        <tbody>
+          <tr><td>FireDetector</td><td>Runs YOLOv8 fire inference, falls back to HSV colour detection if model missing</td></tr>
+          <tr><td>SmokeDetector</td><td>Runs YOLOv8 smoke inference, falls back to MOG2 + frame differencing</td></tr>
+          <tr><td>SceneDetector</td><td>Detects persons and vehicles using yolov8n.pt for context filtering</td></tr>
+          <tr><td>HUDRenderer</td><td>Draws all visual overlays — boxes, banners, status bars, scanlines</td></tr>
+          <tr><td>SoundAlarmer</td><td>pygame-based alarm with auto-beep generation and cooldown</td></tr>
+          <tr><td>EmailAlerter</td><td>Gmail SMTP email with HTML body and screenshot attachment</td></tr>
+          <tr><td>DetectionLogger</td><td>Writes frame-by-frame CSV log and alert-only CSV</td></tr>
+          <tr><td>SessionReportGenerator</td><td>Builds self-contained HTML report with Chart.js graphs</td></tr>
+          <tr><td>SustainedAlertGate</td><td>Requires N seconds of continuous detection before passing alert</td></tr>
+          <tr><td>CameraWorker</td><td>Runs one camera feed in its own background thread</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ── AUTHOR ── -->
+<section id="author">
+  <div class="container">
+    <div class="section-label">Author</div>
+    <h2>About</h2>
+
+    <div class="author">
+      <div class="author-avatar">BH</div>
+      <div>
+        <div class="author-name">Bade Hari Preetham</div>
+        <div class="author-role">Computer Science Student · VTU Curriculum</div>
+        <div class="author-tags">
+          <span class="author-tag">Computer Vision</span>
+          <span class="author-tag">Python</span>
+          <span class="author-tag">YOLOv8</span>
+          <span class="author-tag">OpenCV</span>
+          <span class="author-tag">Flask</span>
+          <span class="author-tag">Deep Learning</span>
+        </div>
+      </div>
+    </div>
+
+    <p class="mt-6">
+      This project was built entirely from scratch — starting from a base repository and extending it with a
+      custom-trained AI model, multi-channel alert system, web dashboard, multi-camera support, session reporting,
+      and extensive false-positive suppression logic. Every feature was designed, debugged, and tested hands-on.
+    </p>
+
+    <h3 class="mt-8">Key technical decisions</h3>
+    <div class="tbl-wrap mt-4">
+      <table>
+        <thead><tr><th>Decision</th><th>Why</th></tr></thead>
+        <tbody>
+          <tr><td>YOLOv8 over HSV for fire</td><td>HSV colour matching triggered on bird pictures, warm lights, and skin tones. YOLO learned from 20k real fire images and ignores these.</td></tr>
+          <tr><td>Shared model for smoke</td><td>Avoids loading a second model into memory. The fire model's smoke class is reused by SmokeDetector, saving ~50MB RAM and load time.</td></tr>
+          <tr><td>Consecutive frame gate</td><td>Single-frame spikes from camera noise can't escalate risk. Smoke must appear in 8 consecutive frames before confidence rises.</td></tr>
+          <tr><td>Background threads for alerts</td><td>Email sending can take 2–5 seconds. Running it in a daemon thread means the video loop never drops frames during alert delivery.</td></tr>
+          <tr><td>Scene-aware blob filtering</td><td>Person movement + cream walls = false smoke. Discarding blobs that overlap person bounding boxes eliminated the most common false positive source.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ── FOOTER ── -->
+<footer class="container">
+  <div class="footer-brand">
+    <span>■</span> Industrial Fire &amp; Smoke Detection System &nbsp;·&nbsp; Bade Hari Preetham &nbsp;·&nbsp; 2026
+  </div>
+  <div class="footer-links">
+    <a href="#overview">Back to top ↑</a>
+  </div>
+</footer>
+
+</body>
+</html>
